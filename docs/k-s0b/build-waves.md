@@ -9,6 +9,7 @@
 - Components requiring Twig, Doctrine, AWS SDK, Guzzle, or git-php **must not be scheduled**.
 - If a dependency cycle is found, affected components are stopped.
 - Missing or stub-only components are separated from implementation-ready components.
+- Repository-level scripts (e.g., `CLI/migrate.php`, `CLI/seed.php`) are NOT component-level dependencies. Their imports are recorded in the dependency CSV and conflicts.md but do not determine a component's build-wave eligibility.
 
 ## Implementation-Ready Build Waves
 
@@ -18,7 +19,7 @@
 |---|---|---|---|
 | CORE-02 | Reactive DI Container | (none) | psr/container |
 | CORE-03 | PSR-14 Event Dispatcher | (none) | psr/container, psr/event-dispatcher, psr/log |
-| CORE-04 | PSR-7 HTTP Message & Factory | (none) | psr/http-message |
+| CORE-04 | PSR-7 HTTP Message & Factory | (none) | psr/http-factory, psr/http-message |
 | CORE-05 | PSR-15 Middleware & Request Handler | (none) | psr/container, psr/http-message, psr/http-server-handler, psr/http-server-middleware |
 | CORE-06 | Attribute-Based Router | (none) | psr/http-message |
 | CORE-08 | Global Error & Exception Handler | (none) | psr/log |
@@ -44,12 +45,22 @@ These components have source imports of forbidden packages (Doctrine, git-php) a
 | Component | Name | Forbidden Dependency | Source Evidence |
 |---|---|---|---|
 | CORE-01 | Polyrepo Orchestrator (Loom) | CzProject (czproject/git-php) | `orchestrator/src/RepoManager.php` imports `CzProject\Git\GitRepository` |
-| CORE-13 | CLI Engine (Console) | Doctrine | `CLI/migrate.php` imports `SovereignStack\Core\Database\Migration\DoctrineMigrationRunner` (which uses Doctrine DBAL) |
 | CORE-19 | Database Abstraction Layer | Doctrine | `Core/Database/Migration/DoctrineMigrationRunner.php` imports `Doctrine\DBAL\Connection`, `Doctrine\DBAL\DriverManager` |
 
-**Note on CORE-13:** The Doctrine dependency in CORE-13 is via `CLI/migrate.php` and `CLI/seed.php`, which are repository-level procedural scripts — not a Console Engine component. CORE-13's blueprint describes a CLI Engine (Console Application), but no Console Engine implementation exists. The scripts' imports of Container, Config, and Database are repository-level dependencies, not architectural dependencies of a CLI component. See CONFLICT-001 for the Loom CLI behavior conflict and the CLI classification issue in `conflicts.md`.
-
 **Note on CORE-01:** CzProject (git-php) is used by the orchestrator's `RepoManager` for Git repository operations. This is an operational dependency of the polyrepo orchestrator, not a framework runtime dependency.
+
+## Not Implemented — No Console Engine Component Exists
+
+CORE-13 (CLI Engine / Console) has a blueprint describing a Console Engine (Application, Command, CommandRegistry, InputInterface, OutputInterface) but **no Console Engine implementation exists** in the repository. The `CLI/` directory contains only two repository-level procedural scripts:
+
+- `CLI/migrate.php` — calls `DoctrineMigrationRunner` directly (imports Container, Config, Database)
+- `CLI/seed.php` — broken (imports non-existent classes)
+
+These scripts are **repository-level utilities**, not a CORE-13 Console Engine component. Their imports of Container, Config, and Database are script-level usage and do NOT constitute CORE-13 component-level dependencies. See `conflicts.md` CLI Script Classification Note for details.
+
+CORE-13 is classified as **not implemented** — it cannot be scheduled in build waves because the component does not exist. The script-level Doctrine import in `CLI/migrate.php` does not make CORE-13 a forbidden-dependency component; the script is not the component.
+
+CONFLICT-001 (CORE-13 vs CORE-01 Loom CLI behavior) remains unresolved.
 
 ## NeoSPX Exclusion (per K-S0b §7.6)
 
@@ -67,6 +78,7 @@ These components have blueprints but no implementation directory or only stub fi
 
 | Component | Name | Implementation Status | Evidence |
 |---|---|---|---|
+| CORE-13 | CLI Engine (Console) | NOT IMPLEMENTED — no Console Engine exists; only repository-level scripts in `CLI/` | Blueprint describes Application/Command/CommandRegistry; no such classes exist in source |
 | CORE-15 | Cache Abstraction (PSR-6/16) | MISSING — no `Core/Cache/` directory exists | Blueprint only; zero implementation files |
 | CORE-17 | Service Provider System | STUB — stub interface and empty implementation exist inside Kernel | `Core/Kernel/Stub/ProviderRegistryInterface.php` (interface), `Core/Kernel/Stub/EmptyProviderRegistry.php` (empty implementation). Not a dedicated component directory. |
 | CORE-20 | Developer CLI Toolchain (Forge) | MISSING — no implementation directory exists | Blueprint only; zero implementation files |
@@ -77,9 +89,9 @@ These components have blueprints but no implementation directory or only stub fi
 |---|---:|---|
 | Wave 1 (implementation-ready, zero deps) | 10 | CORE-02, 03, 04, 05, 06, 08, 09, 10, 14, 16 |
 | Wave 2 (Core deps satisfied) | 1 | CORE-18 |
-| Not scheduled (forbidden deps) | 3 | CORE-01, 13, 19 |
+| Not scheduled (forbidden deps) | 2 | CORE-01, 19 |
 | NeoSPX excluded (§7.6) | 3 | CORE-07, 11, 12 |
-| Missing/stub | 3 | CORE-15, 17, 20 |
+| Not implemented / missing / stub | 4 | CORE-13, 15, 17, 20 |
 | **Total** | **20** | |
 
 ## Execution Provenance
