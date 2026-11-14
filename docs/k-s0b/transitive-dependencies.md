@@ -1,6 +1,15 @@
 # Transitive Dependency Analysis
 
-**Baseline:** `543329ed84a2148308e0cc455ac7e2fe27cf35f4`
+**Baseline:** `543329ed84a2148e0cc455ac7e2fe27cf35f4`
+
+## SStack Dependency Policy
+
+This analysis applies the binding SStack dependency policy:
+
+- **ALLOWED:** PHP runtime and required PHP extensions.
+- **ALLOWED:** PSR contract/interface packages (`psr/*`). These provide interfaces only — SStack implements them natively.
+- **FORBIDDEN:** Third-party implementation libraries (Twig, Doctrine, Guzzle, AWS SDK, git-php, predis, nikic/php-parser, php-http/discovery). Framework functionality must be implemented natively within SovereignStack.
+- **HISTORICAL:** DGLab source imports of forbidden packages. These are recorded as evidence of DGLab's current dependencies but do NOT authorize their introduction into SStack.
 
 ## Method
 
@@ -54,32 +63,49 @@ A transitive dependency exists only when a direct provider itself has further Co
 
 ## External Package Verification
 
-The root `composer.json` at the baseline SHA contains 17 `require` entries. Of these, 3 are PHP language/extensions (`php`, `ext-mbstring`, `ext-pcre`) and 14 are Composer packages. All 14 were verified against actual source imports:
+The root `composer.json` at the baseline SHA contains 17 `require` entries. Of these, 3 are PHP language/extensions (`php`, `ext-mbstring`, `ext-pcre`) and 14 are Composer packages. Each package was verified against actual source imports and classified under the SStack dependency policy.
 
-| Package | composer.json require | Verified interface/package | Components using it |
+### ALLOWED — PSR Contract Interface Packages
+
+These packages provide interfaces only. SStack implements them natively. They are approved dependencies for SStack.
+
+| Package | composer.json | Provides (interfaces only) | Used by Core Components |
 |---|---|---|---|
-| `psr/container: ^2.0` | YES | `Psr\Container\ContainerInterface` (PSR-11) | CORE-02, 03, 05, 18 (via Kernel) |
-| `psr/event-dispatcher: ^1.0` | YES | `Psr\EventDispatcher\EventDispatcherInterface`, `ListenerProviderInterface` (PSR-14) | CORE-03, 18 (via Kernel) |
+| `psr/container: ^2.0` | YES | `Psr\Container\ContainerInterface` (PSR-11) | CORE-02, 03, 05, 18 |
+| `psr/event-dispatcher: ^1.0` | YES | `Psr\EventDispatcher\EventDispatcherInterface`, `ListenerProviderInterface`, `StoppableEventInterface` (PSR-14) | CORE-03, 18 |
 | `psr/http-factory: ^1.0` | YES | `Psr\Http\Message\ResponseFactoryInterface`, `ServerRequestFactoryInterface`, `StreamFactoryInterface` (PSR-17) | CORE-04 (implements factory interfaces in `ResponseFactory.php`, `ServerRequestFactory.php`, `StreamFactory.php`) |
-| `psr/http-message: ^2.0` | YES | `Psr\Http\Message\*` interfaces (PSR-7) | CORE-04, 05, 06, 18 (via Kernel) |
+| `psr/http-message: ^2.0` | YES | `Psr\Http\Message\*` interfaces — `RequestInterface`, `ResponseInterface`, `StreamInterface`, `UriInterface`, etc. (PSR-7) | CORE-04, 05, 06, 18 |
 | `psr/http-server-handler: ^1.0` | YES | `Psr\Http\Server\RequestHandlerInterface` (PSR-15) | CORE-05 |
 | `psr/http-server-middleware: ^1.0` | YES | `Psr\Http\Server\MiddlewareInterface` (PSR-15) | CORE-05 |
-| `psr/log: ^3.0` | YES | `Psr\Log\LoggerInterface` (PSR-3) | CORE-03, 08, 09, 16, 19 |
-| `doctrine/dbal: ^4.5` | YES | `Doctrine\DBAL\Connection`, `Doctrine\DBAL\DriverManager` | CORE-19 (component-level); CORE-13 (script-level via `CLI/migrate.php`) |
-| `twig/twig: ^3.30` | YES | `Twig\Environment`, `Twig\Loader\FilesystemLoader` | `Core/View/` (no dedicated blueprint in CORE-01 to CORE-20; rendering will be replaced by NeoSPX per ADR-S02) |
-| `czproject/git-php: ^4.6` | YES | `CzProject\Git\GitRepository` | CORE-01 (orchestrator) |
-| `predis/predis: ^3.7` | YES | `Predis\*` classes | NOT imported by any Core component (used by Hub/Identity) |
-| `guzzlehttp/guzzle: ^8.3` | YES | `GuzzleHttp\*` classes | NOT imported by any Core component |
-| `nikic/php-parser: ^5.9` | YES | `PhpParser\*` classes | NOT imported by any Core component |
-| `php-http/discovery: ^1.20` | YES | `Http\Discovery\*` classes | NOT imported by any Core component |
+| `psr/log: ^3.0` | YES | `Psr\Log\LoggerInterface`, `LogLevel` (PSR-3) | CORE-03, 08, 09, 16, 19 |
+
+**7 PSR packages — all verified as interface-only contracts.** All are used by Core components. All are ALLOWED under the SStack dependency policy.
+
+### HISTORICAL — Forbidden Third-Party Implementation Libraries
+
+These packages are third-party implementations (not PSR contracts). They are HISTORICAL DGLab dependencies. Their presence in DGLab's `composer.json` does NOT authorize their introduction into SStack. SStack must implement equivalent functionality natively.
+
+| Package | composer.json | Provides (implementations) | Used by Core Components | SStack Action |
+|---|---|---|---|---|
+| `doctrine/dbal: ^4.5` | YES | `Doctrine\DBAL\Connection`, `Doctrine\DBAL\DriverManager` (database abstraction) | CORE-19 (component-level); CORE-13 (script-level via `CLI/migrate.php`) | SStack must implement database abstraction natively |
+| `twig/twig: ^3.30` | YES | `Twig\Environment`, `Twig\Loader\FilesystemLoader` (template engine) | `Core/View/` (`TwigDriver.php`) — no dedicated blueprint in CORE-01 to CORE-20 | Superseded by ADR-S02 NeoSPX native rendering. See CONFLICT-006. |
+| `czproject/git-php: ^4.6` | YES | `CzProject\Git\GitRepository` (Git wrapper) | CORE-01 (orchestrator) | SStack must implement Git operations natively or defer Loom |
+| `predis/predis: ^3.7` | YES | `Predis\*` classes (Redis client) | NOT imported by any Core component (used by Hub/Identity only) | Not a Core dependency; Hub-tier concern |
+| `guzzlehttp/guzzle: ^8.3` | YES | `GuzzleHttp\*` classes (HTTP client) | NOT imported by any Core component | Not a Core dependency |
+| `nikic/php-parser: ^5.9` | YES | `PhpParser\*` classes (PHP parser) | NOT imported by any Core component | Not a Core dependency |
+| `php-http/discovery: ^1.20` | YES | `Http\Discovery\*` classes (HTTP factory discovery) | NOT imported by any Core component | Not a Core dependency; not a PSR package |
+
+**7 third-party implementation packages — all classified as HISTORICAL/FORBIDDEN.** None are approved for SStack. 3 are imported by Core components (Doctrine, Twig, CzProject). 4 are not imported by any Core component (Predis, Guzzle, nikic/php-parser, php-http/discovery).
 
 ### Verification notes
 
-- 14 Composer packages verified (excluding `php`, `ext-mbstring`, `ext-pcre`).
-- `predis/predis`, `guzzlehttp/guzzle`, `nikic/php-parser`, and `php-http/discovery` are in the root `composer.json` `require` but are NOT imported by any Core component. They are dependencies of Hub, Bridge, or Spokes tier components, not Core.
-- `twig/twig` is imported only by `Core/View/` (`TwigDriver.php`). `Core/View/` does not have a dedicated blueprint in CORE-01 to CORE-20. ADR-S02 (approved and frozen) removes Twig from SStack — see `conflicts.md` CONFLICT-006 (reclassified as historical/migration constraint).
-- `doctrine/dbal` is imported by `Core/Database/` (CORE-19, component-level) and by `CLI/migrate.php` (script-level, not a CORE-13 component dependency). This is a forbidden dependency for Stage 1 build waves per K-S0b §7.5.
-- `psr/http-factory` (PSR-17) provides factory interfaces (`ResponseFactoryInterface`, `ServerRequestFactoryInterface`, `StreamFactoryInterface`) implemented by `Core/HttpMessage/` in `ResponseFactory.php`, `ServerRequestFactory.php`, and `StreamFactory.php`.
+- 14 Composer packages verified total (excluding `php`, `ext-mbstring`, `ext-pcre`).
+- 7 are PSR contract interface packages (ALLOWED).
+- 7 are third-party implementation packages (HISTORICAL/FORBIDDEN).
+- `php-http/discovery` is NOT a PSR package despite being HTTP-related. It is a third-party implementation from the PHP-HTTP project. It is NOT imported by any Core component.
+- `predis/predis`, `guzzlehttp/guzzle`, `nikic/php-parser`, and `php-http/discovery` are in DGLab's `composer.json` but are NOT imported by any Core component. They are Hub/Bridge/Spokes tier dependencies.
+- `twig/twig` is imported only by `Core/View/` (`TwigDriver.php`). `Core/View/` does not have a dedicated blueprint in CORE-01 to CORE-20. ADR-S02 (approved and frozen) removes Twig from SStack — see `conflicts.md` CONFLICT-006 (classified as historical/migration constraint).
+- `doctrine/dbal` is imported by `Core/Database/` (CORE-19, component-level) and by `CLI/migrate.php` (script-level, not a CORE-13 component dependency). This is a FORBIDDEN dependency for SStack.
 
 ## Dependency Graph (adjacency list — component level only)
 
@@ -97,6 +123,6 @@ No cycles detected. The Core dependency graph is acyclic. No component depends o
 
 - **Executor:** Z.ai (Kilo was unavailable in the execution environment)
 - **Method:** Read-only analysis via `git show origin/main:<path>` against verified baseline SHA
-- **External package verification:** Root `composer.json` inspected at baseline SHA
+- **External package verification:** Root `composer.json` inspected at baseline SHA; PSR package interfaces verified against actual source usage
 - **No tests executed**
 - **No repositories modified**

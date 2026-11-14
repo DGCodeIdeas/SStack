@@ -6,6 +6,16 @@ Conflicts are recorded without resolution. The project owner decides each indivi
 
 **Execution provenance:** Z.ai executed this analysis (Kilo was unavailable). Method: read-only source inspection via `git show origin/main:<path>`. No tests executed. No repositories modified.
 
+## SStack Dependency Policy
+
+This conflict register applies the binding SStack dependency policy:
+
+- **ALLOWED:** PHP runtime, PHP extensions, and PSR contract/interface packages (`psr/*`).
+- **FORBIDDEN:** Third-party implementation libraries (Twig, Doctrine, Guzzle, AWS SDK, git-php, predis, nikic/php-parser, php-http/discovery). SStack implements framework functionality natively.
+- **HISTORICAL:** DGLab source imports of forbidden packages. These are recorded as evidence but do NOT authorize their introduction into SStack.
+
+DGLab dependencies on third-party implementation libraries are classified as HISTORICAL — they document what DGLab does, not what SStack may do.
+
 ---
 
 ## CONFLICT-001: CORE-13 vs CORE-01 — Loom CLI behavior (MANDATORY)
@@ -120,7 +130,11 @@ CORE-20 (Developer CLI Toolchain / Sovereign Forge) has a blueprint but no imple
 
 ### Background
 
-DGLab's `Core/View/` (8 PHP files, 444 lines) depends on Twig (`twig/twig: ^3.30`). The source imports `Twig\*` classes.
+DGLab's `Core/View/` (8 PHP files, 444 lines) depends on Twig (`twig/twig: ^3.30`). The source imports `Twig\Environment` and `Twig\Loader\FilesystemLoader` in `TwigDriver.php`.
+
+**Note:** `Core/View/` does not have a dedicated blueprint in CORE-01 to CORE-20. CORE-16 is Binary Encryption Envelope (`Core/Crypto/`), not View. The View component exists as a directory but lacks its own blueprint entry.
+
+Under the SStack dependency policy, `twig/twig` is a FORBIDDEN third-party implementation library. This is a HISTORICAL DGLab dependency — it does NOT authorize Twig's introduction into SStack.
 
 ### Owner decision (already settled)
 
