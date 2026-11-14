@@ -33,3 +33,10 @@
 All analysis performed via `git show origin/main:<path>` against the verified SHA.
 No working-tree checkout was used for source inspection.
 No modifications were made to either repository.
+
+## Execution Provenance
+
+- **Executor:** Z.ai (Kilo was unavailable in the execution environment)
+- **Method:** Read-only analysis via `git show origin/main:<path>`
+- **No tests executed:** This is source inspection only
+- **No repositories modified:** Neither DGLab nor SStack were modified during this analysis
