@@ -1,6 +1,6 @@
 # Transitive Dependency Analysis
 
-**Baseline:** `543329ed84a2148e0cc455ac7e2fe27cf35f4`
+**Baseline:** `543329ed84a2148308e0cc455ac7e2fe27cf35f4`
 
 ## SStack Dependency Policy
 
