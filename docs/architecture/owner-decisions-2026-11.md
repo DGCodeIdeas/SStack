@@ -51,6 +51,20 @@ Reconstruction proceeds sequentially, one tier at a time. A tier must pass its a
 ### OD-007 — One Component at a Time
 Within a tier, components must be reconstructed sequentially. A component must be fully implemented and validated before work begins on the next. No stubs, placeholders, empty methods, or fake implementations. Each component requires: verified source/blueprint requirements, agreed scope, complete implementation, meaningful tests, static analysis, documentation, and completion review.
 
+### OD-009 — Core Before CLI
+**Resolves:** CLI vs Core reconstruction order
+
+Core is reconstructed first. CLI is built against completed Core implementations.
+
+Binding reconstruction order:
+1. Core — reconstruct and validate all components in dependency order.
+2. CLI — build against completed Core implementations.
+3. Independent tiers — follow the approved dependency graph.
+4. Loom — follow OD-001 and ADR-S01.
+5. Integration — validate the complete framework.
+
+This follows the dependency direction established in ADR-S01 (CLI depends on Core).
+
 ### OD-008 — Conflict Governance
 When source code, blueprints, tests, or samples disagree: record documented requirement, record actual source behaviour, record test evidence, explain discrepancy, present options to owner. Do not resolve without explicit owner approval.
 
@@ -61,3 +75,4 @@ SStack may use: PHP runtime and justified extensions; PSR contract/interface pac
 These decisions establish architectural direction. They do not independently authorize implementation. Before implementation begins: roadmap must be reconciled, component inventory reviewed, detailed scope approved, and owner must explicitly authorize the next stage.
 
 ADR-S01 and ADR-S02 remain frozen and binding.
+

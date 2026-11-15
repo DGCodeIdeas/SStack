@@ -11,21 +11,15 @@
 - ADR-S02: NeoSPX deferred until HTTP Kernel boots and handles requests reliably.
 - SStack dependency policy: PSR contracts allowed; third-party implementations forbidden.
 
-## Reconciliation Note: CLI vs Core Order
+## Reconstruction Order (OD-009)
 
-The reconstruction roadmap specifies CLI first, then Core. However, ADR-S01 establishes that CLI depends on Core (`CLI | Core` in the permitted dependencies table). This creates a tension:
+**OD-009 (approved 2026-11-15):** Core is reconstructed first. CLI is built against completed Core implementations.
 
-- CORE-13 (CLI Engine) blueprint specifies that Console commands are registered via the CORE-02 DI Container.
-- If CLI depends on Core, Core must be at least partially reconstructed before CLI.
+This follows the dependency direction established in ADR-S01: CLI depends on Core (`CLI | Core` in the permitted dependencies table). CORE-13 (CLI Engine) blueprint specifies that Console commands are registered via the CORE-02 DI Container. Therefore, Core must be complete before CLI reconstruction begins.
 
-**This is recorded per OD-008 (conflict governance) and requires owner decision:**
-- Option A: Reconstruct Core first, then CLI (follows dependency direction).
-- Option B: Reconstruct CLI with a minimal self-contained Container, then refactor when Core is reconstructed.
-- Option C: Reconstruct Core and CLI in parallel, one component at a time each (violates OD-006).
+The sequence below covers the Core tier first. CLI tier follows after all Core components are complete.
 
-**Not resolved.** Owner must decide before implementation begins.
-
-## Core Tier — Implementation Sequence (Subject to Owner Decision on CLI/Core Order)
+## Core Tier — Implementation Sequence
 
 ### Wave 1 — Leaf Components (Zero Core Dependencies, PSR-Only External Deps)
 
@@ -69,12 +63,14 @@ These components are deferred by architectural decisions. They require the HTTP 
 | CORE-01 | OD-001 + forbidden dep (git-php) | Native Git ops + Loom design | Stage 4 |
 | CORE-20 | OD-005: Native Forge | CLI tier complete + design | Stage 4+ |
 
-### CLI Tier (Subject to Owner Decision on Order)
+## CLI Tier — After Core Completion
+
+CLI reconstruction begins only after all Core components are complete and validated (OD-009).
 
 | Component | Status | Notes |
 |---|---|---|
-| CORE-13 | MISSING — must be built from blueprint | Blueprint describes full Console Engine. DGLab has only 2 procedural scripts. |
-| CORE-20 | MISSING — deferred (OD-005) | Forge; separate from initial Console slice |
+| CORE-13 | MISSING — must be built from blueprint | Blueprint describes full Console Engine. DGLab has only 2 procedural scripts. Depends on CORE-02 (Container). |
+| CORE-20 | MISSING — deferred (OD-005) | Forge; separate from initial Console slice. Depends on CORE-13 complete. |
 
 ## Completion Criteria Per Component (OD-007)
 
@@ -90,3 +86,4 @@ Each component must have ALL of the following before being marked complete:
 8. Completion review before next component begins
 
 **Safeguard:** A component must not be marked complete merely because its tests pass. Implementation must be checked against original DGLab source, relevant blueprints, and approved architecture.
+

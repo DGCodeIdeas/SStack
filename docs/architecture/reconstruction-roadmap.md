@@ -21,24 +21,22 @@
 | Stage | Description | Status | Authorization |
 |---|---|---|---|
 | Stage 0 | Inspect DGLab, verify baseline, prepare analysis | COMPLETE (K-S0b) | Approved |
-| Stage 1 | Reconstruct CLI tier | NOT STARTED | Required |
-| Stage 2 | Reconstruct Core tier | NOT STARTED | Required |
+| Stage 1 | Reconstruct Core tier | NOT STARTED | Required |
+| Stage 2 | Reconstruct CLI tier | NOT STARTED | Required (after Stage 1) |
 | Stage 3 | Reconstruct independent tiers (Hub, Bridge, Spokes) | NOT STARTED | Required (after Stage 2) |
 | Stage 4 | Reconstruct Loom as CLI + orchestrator (OD-001) | NOT STARTED | Required (after Stage 3) |
 | Stage 5 | Integrate and validate complete framework | NOT STARTED | Required (after Stage 4) |
 
-## Open Item Requiring Owner Decision
+## Reconstruction Order
 
-### CLI vs Core Reconstruction Order
+**OD-009 (approved 2026-11-15):** Core is reconstructed first. CLI is built against completed Core implementations. This follows the dependency direction established in ADR-S01 (CLI depends on Core).
 
-The roadmap specifies CLI first (Stage 1), then Core (Stage 2). However, ADR-S01 establishes that CLI depends on Core. CORE-13 (Console Engine) blueprint specifies registration via CORE-02 (DI Container).
-
-**Options (per OD-008, not resolved):**
-- A: Core first, then CLI (follows dependency direction)
-- B: CLI with minimal self-contained Container, refactor later
-- C: Parallel reconstruction (violates OD-006)
-
-**Owner must decide before Stage 1 or Stage 2 can be authorized.**
+The binding order is:
+1. Core — reconstruct and validate all components in dependency order
+2. CLI — build against completed Core implementations
+3. Independent tiers — follow the approved dependency graph
+4. Loom — follow OD-001 and ADR-S01
+5. Integration — validate the complete framework
 
 ## Dependency Policy (Binding)
 
@@ -60,3 +58,4 @@ SStack must NOT depend on third-party implementation libraries. Historical DGLab
 
 See `docs/architecture/component-inventory.md` for full details.
 See `docs/architecture/implementation-sequence.md` for dependency-ordered sequence.
+
