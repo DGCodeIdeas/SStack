@@ -81,6 +81,16 @@ Eight sub-decisions approved 2026-11-15 for CORE-10 reconstruction:
 7. Exceptions: ConfigurationException, MissingConfigurationException, InvalidConfigurationException, InvalidEnvironmentException and ConfigurationFileException under SovereignStack\Core\Config\Exception.
 8. ConfigKey attribute: Deferred to CORE-17. CORE-10 must function independently without it.
 
+
+### B1 - Full TOML 1.0.0 Support
+Approved 2026-11-15. Implement full TOML 1.0.0 support. Native SovereignStack implementation. No third-party parser. Comprehensive TOML 1.0.0 conformance tests. Document parsing errors and diagnostics.
+
+### B2 - PHP Array-Based Validation Schemas
+Approved 2026-11-15. ConfigValidator uses PHP array-based validation schemas. Support required keys, expected types, configured constraints and required secret availability. Schema structure: required (key => type), optional (key => type), constraints (key => closure), required_secrets (key list).
+
+### B3 - Single ConfigLoader load() Method
+Approved 2026-11-15. One public load() method orchestrates the complete configuration lifecycle. ConfigBuilder and EnvLoader retain separate responsibilities. Multi-step API (discoverFiles/loadFiles/loadEnvironment/merge/validate/build) recorded as deferred alternative, not approved.
+
 ## Dependency Policy
 SStack may use: PHP runtime and justified extensions; PSR contract/interface packages where actually required; SovereignStack-native implementations. SStack must not depend on third-party implementation libraries. Historical DGLab dependencies are evidence, not authorization.
 
