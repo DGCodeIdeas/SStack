@@ -831,7 +831,7 @@ This matches DGLab source behaviour. No changes approved.
 | 98 | Load propagates validation errors | NEW (B3) | B3+D6: failure atomicity |
 | 99 | Load with empty config produces empty repository with default environment error | NEW (B3) | B3+D5: absent APP_ENV |
 
-**Total: 99 acceptance tests** (54 from DGLab source, 45 new SStack requirements)
+**Total: 99 acceptance tests** (62 from DGLab source, 37 new SStack requirements)
 
 ---
 
@@ -857,7 +857,7 @@ This matches DGLab source behaviour. No changes approved.
 1. **Verified requirements:** This specification (v3) with source evidence and traceability
 2. **Agreed scope:** Zero external dependencies; zero Core-internal dependencies; PHP 8.4 + ext-json only
 3. **Complete implementation:** All classes fully implemented — no stubs, no placeholders, no empty methods
-4. **Tests:** 99 acceptance tests pass (54 source-derived, 45 new SStack)
+4. **Tests:** 99 acceptance tests pass (62 source-derived, 37 new SStack)
 5. **Static analysis:** PHPStan level max with bleedingEdge.neon — zero errors
 6. **Documentation:** Public contracts documented (ConfigInterface, ConfigBuilderInterface, EnvLoaderInterface, ConfigLoader, ConfigValidator, Environment enum, exception hierarchy)
 7. **Completion review:** Implementation checked against DGLab source, blueprint, approved architecture, and this specification
