@@ -68,6 +68,19 @@ This follows the dependency direction established in ADR-S01 (CLI depends on Cor
 ### OD-008 — Conflict Governance
 When source code, blueprints, tests, or samples disagree: record documented requirement, record actual source behaviour, record test evidence, explain discrepancy, present options to owner. Do not resolve without explicit owner approval.
 
+## Decision 008 - CORE-10 Configuration and Environment Loader
+
+Eight sub-decisions approved 2026-11-15 for CORE-10 reconstruction:
+
+1. Architecture: ConfigLoader facade backed by ConfigBuilder and EnvLoader.
+2. Merge precedence: Configuration files, then environment variables, then explicit application overrides.
+3. Format: Native TOML parser; TOML is the exclusive configuration-file format.
+4. Public API: get(), getOrFail(), has(), all(), allRaw(), getEnvironment().
+5. Environment: Native backed enum with Development, Staging and Production cases. Unknown values must produce an error.
+6. Validation: Native ConfigValidator supporting required keys, expected types, configured constraints and required secret availability.
+7. Exceptions: ConfigurationException, MissingConfigurationException, InvalidConfigurationException, InvalidEnvironmentException and ConfigurationFileException under SovereignStack\Core\Config\Exception.
+8. ConfigKey attribute: Deferred to CORE-17. CORE-10 must function independently without it.
+
 ## Dependency Policy
 SStack may use: PHP runtime and justified extensions; PSR contract/interface packages where actually required; SovereignStack-native implementations. SStack must not depend on third-party implementation libraries. Historical DGLab dependencies are evidence, not authorization.
 

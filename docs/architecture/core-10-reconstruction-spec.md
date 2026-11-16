@@ -1,319 +1,389 @@
-# CORE-10 Reconstruction Specification
+# CORE-10 Reconstruction Specification v2
 
 **Component:** Configuration & Environment Loader
-**Blueprint:** `Architecture/Core/CORE-10.md`
-**DGLab baseline:** `543329ed84a2148308e0cc455ac7e2fe27cf35f4`
+**Blueprint:** Architecture/Core/CORE-10.md (DGLab historical reference)
+**DGLab baseline:** 543329ed84a2148308e0cc455ac7e2fe27cf35f4
 **Date:** 2026-11-15
-**Status:** Specification for owner approval — implementation NOT authorized
+**Status:** Specification v2 — incorporates 8 approved owner decisions. Implementation NOT authorized.
 
 ---
 
-## 1. DGLab Source Evidence
+## 1. Approved Owner Decisions for CORE-10
 
-### Source files (10 PHP + 4 config/test fixtures)
+| # | Decision | Source |
+|---|---|---|
+| D1 | Architecture: ConfigLoader facade backed by ConfigBuilder and EnvLoader | Owner decision |
+| D2 | Merge precedence: Configuration files, then environment variables, then explicit application overrides | Owner decision |
+| D3 | Format: Native TOML parser; TOML is the exclusive configuration-file format | Owner decision |
+| D4 | Public API: get(), getOrFail(), has(), all(), allRaw(), getEnvironment() | Owner decision |
+| D5 | Environment: Native backed enum with Development, Staging and Production; unknown values produce an error | Owner decision |
+| D6 | Validation: Native ConfigValidator supporting required keys, expected types, configured constraints, required secret availability | Owner decision |
+| D7 | Exceptions: ConfigurationException, MissingConfigurationException, InvalidConfigurationException, InvalidEnvironmentException, ConfigurationFileException under SovereignStack\Core\Config\Exception | Owner decision |
+| D8 | ConfigKey attribute: Deferred to CORE-17; CORE-10 functions independently without it | Owner decision |
 
-| File | Lines | Kind |
+---
+
+## 2. DGLab Source Evidence
+
+### Source files (10 PHP, 820 lines)
+
+| File | Lines | DGLab Role | SStack Status |
+|---|---:|---|---|
+| Core/Config/ConfigInterface.php | 87 | Frozen interface | REPLACED (new API per D4) |
+| Core/Config/ConfigBuilderInterface.php | 51 | Immutable builder contract | PRESERVED (backs facade per D1) |
+| Core/Config/ConfigRepository.php | 142 | Immutable config store + secret redaction | PRESERVED |
+| Core/Config/ConfigBuilder.php | 184 | Merges PHP files + $_ENV + overrides | ADAPTED (TOML replaces PHP per D3) |
+| Core/Config/EnvLoaderInterface.php | 32 | .env loading contract | PRESERVED |
+| Core/Config/EnvLoader.php | 162 | Parses .env with ${VAR} interpolation | PRESERVED |
+| Core/Config/Exception/InvalidConfigFileException.php | 24 | Config file errors | RENAMED to ConfigurationFileException (D7) |
+| Core/Config/Exception/InvalidEnvFileException.php | 16 | .env file errors | MERGED into ConfigurationFileException (D7) |
+| Core/Config/Exception/MissingConfigurationException.php | 20 | Absent required key | PRESERVED (name retained D7) |
+| Core/Config/Exception/UndefinedInterpolationException.php | 22 | Undefined ${VAR} | REVIEW (may merge into InvalidConfigurationException) |
+
+### Test files (5 classes, ~67 methods)
+
+| File | Methods | SStack Status |
 |---|---:|---|
-| `Core/Config/ConfigInterface.php` | 87 | Interface (frozen per SDLC-AGRD §2.1) |
-| `Core/Config/ConfigBuilderInterface.php` | 51 | Interface |
-| `Core/Config/ConfigRepository.php` | 142 | Final class implementing ConfigInterface |
-| `Core/Config/ConfigBuilder.php` | 184 | Final class implementing ConfigBuilderInterface |
-| `Core/Config/EnvLoaderInterface.php` | 32 | Interface |
-| `Core/Config/EnvLoader.php` | 162 | Final class implementing EnvLoaderInterface |
-| `Core/Config/Exception/InvalidConfigFileException.php` | 24 | Exception class |
-| `Core/Config/Exception/InvalidEnvFileException.php` | 16 | Exception class |
-| `Core/Config/Exception/MissingConfigurationException.php` | 20 | Exception class |
-| `Core/Config/Exception/UndefinedInterpolationException.php` | 22 | Exception class |
+| tests/Unit/ConfigRepositoryTest.php | 23 | ADAPTED (add getEnvironment tests) |
+| tests/Unit/ConfigBuilderTest.php | 16 | ADAPTED (replace PHP file tests with TOML) |
+| tests/Unit/EnvLoaderTest.php | 17 | PRESERVED |
+| tests/Performance/ConfigBenchTest.php | 4 | PRESERVED |
+| tests/Security/ConfigSecurityTest.php | 7 | PRESERVED |
 
-### Test files (5 test classes + 4 fixtures)
-
-| File | Lines | Test Methods | Suite |
-|---|---:|---:|---|
-| `tests/Unit/ConfigRepositoryTest.php` | 260 | ~20 | Unit |
-| `tests/Unit/ConfigBuilderTest.php` | 209 | ~15 | Unit |
-| `tests/Unit/EnvLoaderTest.php` | 250 | ~20 | Unit |
-| `tests/Performance/ConfigBenchTest.php` | 155 | ~5 | Performance |
-| `tests/Security/ConfigSecurityTest.php` | 113 | ~7 | Security |
-| `tests/Fixtures/config/app.php` | 29 | — | Fixture |
-| `tests/Fixtures/config/local.php` | 18 | — | Fixture |
-| `tests/Fixtures/config/not_array.php` | 8 | — | Fixture |
-| `tests/Fixtures/config/.env.test` | 20 | — | Fixture |
-
-**Total:** 10 source files (820 lines), 5 test files (~987 lines), ~67 test methods.
-
-### PHPStan configuration
-
-DGLab's `Core/Config/phpstan.neon` specifies `level: max` with `bleedingEdge.neon`. SStack must match this.
+PHPStan: level max with bleedingEdge.neon. SStack must match.
 
 ---
 
-## 2. Blueprint Requirements (Architecture/Core/CORE-10.md)
+## 3. Source-vs-Blueprint-vs-Approved Resolution Matrix
 
-### Blueprint vs. Source: Key Differences
-
-The blueprint and the actual DGLab implementation diverge in several areas. These are recorded per OD-008 and require owner decision before implementation.
-
-| Area | Blueprint says | Source implements | Discrepancy |
-|---|---|---|---|
-| **ConfigLoader class** | Blueprint provides a complete `ConfigLoader` class with `.env` parsing, JSON loading, merge precedence (secrets: env wins; non-secrets: JSON wins), `detectEnvironment()`, `redact()` | Source does NOT implement `ConfigLoader`. Instead: `ConfigBuilder` (PHP file loading + $_ENV merge + overrides) and `EnvLoader` (separate .env parser) | **DISCREPANCY**: Blueprint's `ConfigLoader` is a single class doing everything; source splits into `ConfigBuilder` + `EnvLoader` with different merge semantics |
-| **Environment enum** | Blueprint defines `Environment` enum (Dev/Staging/Production) with `displayErrors()` and `enableOpcache()` methods | Source does NOT implement `Environment` enum | **MISSING in source**: No environment detection enum exists |
-| **ConfigValidator** | Blueprint defines `ConfigValidator` class with schema validation | Source does NOT implement `ConfigValidator` | **MISSING in source**: No schema validation exists |
-| **ConfigKey attribute** | Blueprint defines `#[ConfigKey]` attribute for CORE-17 compiler pass | Source does NOT implement `ConfigKey` attribute | **MISSING in source**: Deferred to CORE-17 |
-| **ConfigNotFoundException** | Blueprint defines this exception | Source uses `MissingConfigurationException` instead | **NAME MISMATCH**: Different exception class name |
-| **Merge precedence** | Blueprint: secrets → env wins; non-secrets → JSON wins | Source: ConfigBuilder merges PHP files → $_ENV → overrides (overrides win last); no secret-aware merge precedence | **SEMANTIC MISMATCH**: Source has no secret-aware merge logic |
-| **getEnvironment()** | Blueprint: `ConfigInterface::getEnvironment(): Environment` | Source: `ConfigInterface` has NO `getEnvironment()` method | **MISSING in source**: No environment getter on interface |
-| **allRaw()** | Blueprint: `ConfigInterface::all()` returns redacted | Source: `ConfigInterface` has both `all()` (redacted) and `allRaw()` (unredacted) | **SOURCE ADDITION**: `allRaw()` is an addition not in blueprint |
-| **getOrFail()** | Blueprint: `get()` throws `ConfigNotFoundException` when absent and no default | Source: `get()` returns default; separate `getOrFail()` throws `MissingConfigurationException` | **API MISMATCH**: Different throw semantics |
-| **.env interpolation** | Blueprint: supports `\n`, `\t`, `\r`, `\\`, `\"`, `\$` escapes in double-quoted; backslash line continuation | Source: supports `${VAR}` interpolation in double-quoted and bare values; no escape sequences; no line continuation | **FEATURE MISMATCH**: Different .env parsing capabilities |
-| **$_SERVER population** | Blueprint: writes to both $_ENV and $_SERVER | Source: writes to $_ENV only (explicitly avoids getenv() for thread safety) | **BEHAVIOURAL MISMATCH**: Source is more restrictive |
-| **JSON config loading** | Blueprint: `ConfigLoader::loadJson()` | Source: `ConfigBuilder::loadFile()` loads PHP files (require), not JSON | **FORMAT MISMATCH**: Source loads PHP config files, not JSON |
-
-### Unresolved Discrepancies (per OD-008 — NOT resolved)
-
-1. **ConfigLoader vs ConfigBuilder+EnvLoader:** The blueprint specifies a single `ConfigLoader` class. The source implements a split architecture (`ConfigBuilder` + `EnvLoader`). Which architecture should SStack follow?
-2. **Environment enum:** Blueprint specifies it; source doesn't implement it. Should SStack implement it?
-3. **ConfigValidator:** Blueprint specifies schema validation; source doesn't implement it. Should SStack implement it?
-4. **Merge precedence:** Blueprint has secret-aware merge (env wins for secrets, JSON wins for non-secrets). Source has simple precedence (files → $_ENV → overrides). Which merge model should SStack use?
-5. **Config format:** Blueprint loads JSON. Source loads PHP files. Which format should SStack use?
-6. **Exception naming:** Blueprint uses `ConfigNotFoundException`. Source uses `MissingConfigurationException`. Which name should SStack use?
-7. **Interface API:** Blueprint has `getEnvironment()`. Source has `allRaw()` and `getOrFail()`. Which API should SStack expose?
+| Area | DGLab Source | DGLab Blueprint | SStack Approved | Resolution |
+|---|---|---|---|---|
+| Architecture | ConfigBuilder + EnvLoader (separate) | Single ConfigLoader | ConfigLoader facade over ConfigBuilder + EnvLoader (D1) | Owner D1 |
+| Config format | PHP files (require) | JSON files | TOML native parser (D3) | Owner D3 — NEW, no historical TOML |
+| Merge precedence | Files then $_ENV then overrides | Secret-aware (env wins secrets) | Config files then env then overrides (D2) | Owner D2 — source model retained |
+| Environment detection | Not implemented | Environment enum (Dev/Staging/Production, default Production) | Backed enum; unknown = error (D5) | Owner D5 — NEW, stricter than blueprint |
+| Schema validation | Not implemented | ConfigValidator class | Native ConfigValidator (D6) | Owner D6 — NEW |
+| Public API | get/getOrFail/has/all/allRaw | get/has/all/getEnvironment | Union of both (D4) | Owner D4 |
+| Exception naming | 4 separate exceptions | ConfigNotFoundException + ConfigValidationException | 5-class hierarchy (D7) | Owner D7 |
+| ConfigKey attribute | Not implemented | #[ConfigKey] for CORE-17 | Deferred to CORE-17 (D8) | Owner D8 |
+| Secret redaction | SECRET_PATTERN + redact() in ConfigRepository | redact() in ConfigLoader | Preserved from source | Source evidence |
+| ${VAR} interpolation | EnvLoader: ${VAR} against $_ENV | ConfigLoader: escape sequences | EnvLoader behaviour preserved | Source evidence |
+| $_SERVER population | $_ENV only (thread safety) | $_ENV AND $_SERVER | $_ENV only | Source evidence |
+| Immutability | ConfigRepository readonly; ConfigBuilder frozen after build | ConfigRepository immutable | Source behaviour preserved | Source evidence |
+| Null vs absent | get() returns default for absent; null distinguishable | get() throws if absent | Source behaviour: get() returns default; getOrFail() throws | Source evidence |
 
 ---
 
-## 3. SStack PR #1 Comparison
+## 4. TOML Specification and Conformance
 
-SStack PR #1 (`feature/stage-1-2-cli-core`) implemented a simplified Config:
+### Approved decision (D3)
 
-| SStack PR #1 | DGLab Source | Assessment |
+TOML is the exclusive config-file format. Native parser required — no third-party TOML library.
+
+### TOML version
+
+TOML 1.0.0 (https://toml.io/en/v1.0.0). Latest stable version.
+
+### Conformance requirements
+
+The native parser MUST support: key-value pairs (string, integer, float, boolean, datetime, array, inline table), tables and nested tables, array of tables, bare/quoted/dotted keys, multi-line basic and literal strings, comments, all integer formats (decimal, hex, octal, binary, underscores), float formats (standard, exponent, inf, nan), boolean, datetime variants.
+
+The parser MUST reject: invalid syntax with ConfigurationFileException (file path, line number, error description), duplicate keys with ConfigurationFileException.
+
+### Historical evidence
+
+DGLab does NOT implement TOML. DGLab uses PHP config files. TOML is a NEW SStack requirement per D3.
+
+---
+
+## 5. File Discovery, Loading Order, Merge Behaviour
+
+### Loading order (D2)
+
+1. TOML config files (lowest precedence) — loaded via ConfigBuilder::loadFile()
+2. Environment variables — .env loaded via EnvLoader; $_ENV merged (string values, underscores to dots, lowercased)
+3. Explicit overrides (highest precedence) — via ConfigBuilder::withOverride()
+
+### Merge semantics
+
+Recursive merge: when both sides have arrays at same key, merge recursively. Otherwise higher-precedence wins. Matches DGLab source ConfigBuilder::mergeRecursive().
+
+### $_ENV to config key mapping (source-preserved)
+
+APP_URL to app.url, DB_HOST to db.host. Conversion: strtolower(str_replace('_', '.', $envKey)). Only string values merged; non-string and empty skipped.
+
+### .env precedence (source-preserved)
+
+Existing $_ENV keys NEVER overwritten by .env file. Environment wins over .env file.
+
+### Historical evidence
+
+ConfigBuilder merge: verified in ConfigBuilder.php lines 73-89. EnvLoader precedence: verified in EnvLoader.php lines 34-51.
+
+---
+
+## 6. Secret Metadata, Redaction, Validation
+
+### Secret pattern (source-preserved)
+
+Pattern: /password|passwd|secret|token|authorization|cookie|private_key|api_key|secret_key|\bkey\b/i
+
+Source: ConfigInterface.php line 31 (frozen constant).
+
+### Redaction behaviour (source-preserved)
+
+- all(): recursive copy with secrets replaced by '***REDACTED***'. Safe to log.
+- allRaw(): unredacted data. Trusted callers only. Never log.
+- get(): returns RAW value including secrets.
+
+Source: ConfigRepository.php lines 82-90, 106-125.
+
+### Required secret validation (D6 — NEW)
+
+ConfigValidator MUST check required secret keys are present and non-empty. NEW SStack feature — no historical implementation.
+
+---
+
+## 7. Environment-Variable Mapping and Parsing Rules
+
+### .env parsing (source-preserved — all behaviour from EnvLoader.php)
+
+1. Lines starting with # are comments — skipped
+2. Blank lines skipped
+3. export KEY=VALUE and KEY=VALUE both accepted
+4. Keys must match /^[A-Z_][A-Z0-9_]*$/i
+5. Single-quoted: literal (no interpolation)
+6. Double-quoted: ${VAR} interpolation against $_ENV
+7. Bare: trimmed, ${VAR} interpolation applies
+8. Existing $_ENV keys NEVER overwritten
+9. Writes to $_ENV only — never putenv() or getenv()
+10. Undefined ${VAR} left as literal
+11. Malformed lines throw (becomes ConfigurationFileException per D7)
+
+### Environment detection (D5 — NEW)
+
+Backed enum: Development, Staging, Production. Detection from APP_ENV in merged config.
+
+- development/dev/local -> Development
+- staging/stage -> Staging
+- production/prod -> Production
+- absent -> InvalidEnvironmentException (D5: unknown must error)
+- unrecognised -> InvalidEnvironmentException
+
+Historical discrepancy: Blueprint defaulted absent to Production. SStack requires error. This is a behavioural change.
+
+---
+
+## 8. Nested-Key Access, Missing-vs-Null, Default Semantics
+
+### Dot-notation (source-preserved)
+
+Keys use dot-notation: db.connections.primary.host. Split by dot, traverse nested array.
+
+### Key validation (source-preserved, exception reclassified per D7)
+
+- Empty key: throws InvalidConfigurationException (was \InvalidArgumentException)
+- Consecutive dots: throws InvalidConfigurationException
+- Leading dot: throws InvalidConfigurationException
+
+Source: ConfigRepository.php segments() method.
+
+### Missing vs null (source-preserved)
+
+- get('missing') without default: returns null (absent)
+- get('existing.null_key') where value is null: returns null (present, value is null)
+- has('missing'): false; has('existing.null_key'): true
+- getOrFail('missing'): throws MissingConfigurationException
+
+Source: ConfigRepositoryTest testNullValueIsDistinguishableFromAbsentKey.
+
+### Default semantics (source-preserved)
+
+get(key, default): absent key returns default. Present key with null value returns null (NOT default).
+
+---
+
+## 9. ConfigValidator Contracts (D6 — NEW)
+
+### Interface
+
+ConfigValidator validates config against a schema before ConfigRepository construction.
+
+### Schema supports
+
+- Required keys: must be present; absence throws MissingConfigurationException
+- Expected types: each key's type; mismatch throws InvalidConfigurationException
+- Configured constraints: custom rules (length, range, enum); violation throws InvalidConfigurationException
+- Required secrets: must be present and non-empty; absence/empty throws MissingConfigurationException
+
+### Lifecycle
+
+1. ConfigLoader loads and merges all sources
+2. ConfigValidator::validate() called before ConfigRepository construction
+3. Failure: exception thrown, Kernel boot fails
+4. Success: ConfigRepository constructed and frozen
+5. Validation ONCE at boot — not per get() call
+
+### Historical evidence
+
+No ConfigValidator exists in DGLab. Entirely NEW per D6.
+
+---
+
+## 10. Exception Hierarchy (D7)
+
+### Approved hierarchy
+
+ConfigurationException (base, extends \RuntimeException)
+- MissingConfigurationException
+- InvalidConfigurationException
+- InvalidEnvironmentException
+- ConfigurationFileException
+
+Namespace: SovereignStack\Core\Config\Exception
+
+### Exception contracts
+
+| Exception | Thrown When | Context |
 |---|---|---|
-| `ConfigRepository` — mutable with `set()` and `merge()` | `ConfigRepository` — immutable (readonly array, no mutators) | **DEVIATION**: SStack made it mutable; DGLab is immutable |
-| `ConfigInterface` — `get()`, `has()`, `all()` | `ConfigInterface` — `get()`, `getOrFail()`, `has()`, `all()`, `allRaw()` | **MISSING**: `getOrFail()`, `allRaw()` not in SStack |
-| `EnvLoader` — basic .env parser | `EnvLoader` — ${VAR} interpolation, quote handling, env-wins-over-file | **SIMPLIFIED**: SStack's EnvLoader lacks interpolation and proper precedence |
-| No `ConfigBuilderInterface` | `ConfigBuilderInterface` — immutable builder pattern | **MISSING**: No builder pattern in SStack |
-| No `ConfigBuilder` | `ConfigBuilder` — file loading + $_ENV merge + overrides + freeze | **MISSING**: No builder in SStack |
-| No exceptions | 4 exception classes | **MISSING**: No exceptions in SStack |
-| No secret redaction | `SECRET_PATTERN` regex + `redact()` method | **MISSING**: No security redaction in SStack |
-| No performance tests | `ConfigBenchTest` — resolution < 0.01ms | **MISSING**: No performance tests |
-| No security tests | `ConfigSecurityTest` — dot-notation escape prevention | **MISSING**: No security tests |
+| ConfigurationException | Base for all config errors | Message |
+| MissingConfigurationException | Required key absent or required secret missing | Key name |
+| InvalidConfigurationException | Type mismatch, constraint violation, malformed key | Key, expected type, actual |
+| InvalidEnvironmentException | APP_ENV absent or unrecognised | Raw value if any |
+| ConfigurationFileException | TOML/.env parse error, file missing | File path, line number |
 
-**SStack PR #1's Config is a simplified from-scratch implementation that omits the immutability, builder pattern, secret redaction, exception types, and test depth of DGLab's actual implementation.** PR #1 must be discarded for this component.
+### Chaining
 
----
+All exceptions support $previous chaining. Lower-level exceptions (parse errors) passed as $previous when re-thrown.
 
-## 4. Dependency Analysis
+### Safe diagnostics
 
-### Source imports (use statements)
+Messages MUST NOT include secret values. MAY include key names, file paths, line numbers.
 
-**ConfigRepository.php:**
-- `SovereignStack\Core\Config\Exception\MissingConfigurationException` (internal)
+### Historical mapping
 
-**ConfigBuilder.php:**
-- `SovereignStack\Core\Config\Exception\InvalidConfigFileException` (internal)
-
-**EnvLoader.php:**
-- `SovereignStack\Core\Config\Exception\InvalidEnvFileException` (internal)
-
-### External dependencies
-
-**None.** CORE-10 has zero external dependencies:
-- No PSR packages
-- No third-party libraries
-- No Core-internal dependencies (no imports from other Core components)
-- PHP runtime only (`ext-json` is built into PHP 8.4)
-
-This makes CORE-10 the simplest component to reconstruct — it depends on nothing except PHP itself.
-
-### Constructor parameters
-
-- `ConfigRepository`: `array $data` (plain array — no injected services)
-- `ConfigBuilder`: no constructor parameters
-- `EnvLoader`: no constructor parameters
-
----
-
-## 5. Proposed Component Architecture
-
-### Architectural Decision Required
-
-The blueprint and source diverge significantly (see §2). Before implementation, the owner must decide which architecture to follow. The options are:
-
-**Option A: Follow the source (ConfigBuilder + EnvLoader)**
-- Pro: Source is implemented, tested (67 test methods), and proven in DGLab
-- Pro: PHP file config format is simpler than JSON (can return closures, constants)
-- Pro: Immutable builder pattern enforces worker-scope discipline
-- Con: Lacks blueprint's secret-aware merge, environment detection, schema validation
-- Con: Blueprint's `ConfigLoader` is not implemented
-
-**Option B: Follow the blueprint (ConfigLoader)**
-- Pro: Blueprint provides complete reference implementation with secret-aware merge
-- Pro: Includes Environment enum, ConfigValidator, ConfigKey attribute
-- Con: Blueprint's ConfigLoader is untested (no source implementation exists)
-- Con: JSON config format requires ext-json (minor, but different from source)
-- Con: Blueprint's merge semantics differ from source's actual behaviour
-
-**Option C: Reconcile both**
-- Take the source's proven architecture (ConfigBuilder + EnvLoader + ConfigRepository)
-- Add blueprint's missing features (Environment enum, ConfigValidator, ConfigKey)
-- Keep the source's PHP config file format
-- Add the source's secret redaction (already in source but not in blueprint's interface)
-- Pro: Preserves proven behaviour while adding missing features
-- Con: Requires resolving each discrepancy individually (per OD-008)
-
-**Not resolved. Owner must decide.**
-
-### Class Responsibilities (regardless of option chosen)
-
-| Class | Responsibility | Source Status |
+| DGLab Exception | SStack Exception | Evidence |
 |---|---|---|
-| `ConfigInterface` | Immutable read-only config access contract | IMPLEMENTED (87 lines) |
-| `ConfigRepository` | Frozen config store; O(1) dot-notation lookup; secret redaction | IMPLEMENTED (142 lines) |
-| `ConfigBuilderInterface` | Immutable builder contract (loadFile, withOverride, build) | IMPLEMENTED (51 lines) |
-| `ConfigBuilder` | Merges PHP files + $_ENV + overrides; freezes after build() | IMPLEMENTED (184 lines) |
-| `EnvLoaderInterface` | .env file loading contract | IMPLEMENTED (32 lines) |
-| `EnvLoader` | Parses .env into $_ENV; ${VAR} interpolation; env-wins-over-file | IMPLEMENTED (162 lines) |
-| `InvalidConfigFileException` | Thrown for missing/non-array config files | IMPLEMENTED (24 lines) |
-| `InvalidEnvFileException` | Thrown for missing/unreadable .env files | IMPLEMENTED (16 lines) |
-| `MissingConfigurationException` | Thrown by getOrFail() for absent required keys | IMPLEMENTED (20 lines) |
-| `UndefinedInterpolationException` | Thrown for undefined ${VAR} in strict mode | IMPLEMENTED (22 lines) |
+| MissingConfigurationException | MissingConfigurationException (retained) | Source: Exception/MissingConfigurationException.php |
+| InvalidConfigFileException | ConfigurationFileException | Source: Exception/InvalidConfigFileException.php — renamed |
+| InvalidEnvFileException | ConfigurationFileException | Source: Exception/InvalidEnvFileException.php — merged |
+| UndefinedInterpolationException | InvalidConfigurationException | Source: Exception/UndefinedInterpolationException.php — merged |
+| \InvalidArgumentException (key validation) | InvalidConfigurationException | Source: ConfigRepository segments() — reclassified |
+| \UnexpectedValueException (.env malformed) | ConfigurationFileException | Source: EnvLoader — reclassified |
+| \LogicException (builder frozen) | InvalidConfigurationException | Source: ConfigBuilder — reclassified |
+| (none) | ConfigurationException (base) | NEW per D7 |
+| (none) | InvalidEnvironmentException | NEW per D7 |
 
 ---
 
-## 6. Verified Configuration and Environment-Loading Behaviour
+## 11. Updated Acceptance-Test Matrix
 
-### ConfigRepository behaviour (verified from source)
+### ConfigRepository (25 tests)
 
-1. **Construction:** Takes `array $data`; stores as `private readonly array` — immutable after construction
-2. **get(key, default):** Splits key by `.`; traverses nested array; returns value or default if absent
-3. **getOrFail(key):** Same traversal; throws `MissingConfigurationException::forKey($key)` if absent
-4. **has(key):** Same traversal; returns bool
-5. **all():** Returns recursive copy with secrets redacted (keys matching `SECRET_PATTERN` → `'***REDACTED***'`)
-6. **allRaw():** Returns raw data array without redaction (trusted callers only)
-7. **Key validation:** Empty keys and keys with consecutive dots (`..`) throw `\InvalidArgumentException`
-8. **Secret pattern:** `/password|passwd|secret|token|authorization|cookie|private_key|api_key|secret_key|\bkey\b/i`
+| # | Test | Source |
+|---|---|---|
+| 1-22 | (22 tests from DGLab source — get/getOrFail/has/all/allRaw/redact/null-vs-absent/key-validation) | DGLab source |
+| 23 | GetEnvironment returns detected environment | NEW (D5) |
+| 24 | GetEnvironment throws for absent APP_ENV | NEW (D5) |
+| 25 | GetEnvironment throws for unrecognised APP_ENV | NEW (D5) |
 
-### ConfigBuilder behaviour (verified from source)
+### ConfigBuilder (18 tests)
 
-1. **loadFile(path):** Requires PHP file; merges returned array recursively; throws `InvalidConfigFileException` if missing or not array
-2. **withOverride(key, value):** Validates key (no empty, no consecutive dots); stores override
-3. **build():** Freezes builder; merges: (1) file data → (2) $_ENV (string values, underscores → dots, lowercased) → (3) explicit overrides; returns `ConfigRepository`
-4. **Freeze:** After `build()`, further `loadFile()` or `withOverride()` calls throw `\LogicException`
-5. **Recursive merge:** When both sides have arrays at same key, merges recursively; otherwise right wins
-6. **$_ENV conversion:** `APP_URL` → `app.url` (lowercase, underscores → dots)
+| # | Test | Source |
+|---|---|---|
+| 26-27 | Load TOML file merges | NEW (D3) — replaces PHP file tests |
+| 28 | Load file throws when missing | DGLab source (exception reclassified) |
+| 29-30 | Load file throws on malformed/duplicate TOML | NEW (D3) |
+| 31-42 | Override/env/freeze tests (12 from DGLab source) | DGLab source |
+| 43 | TOML preserves native types | NEW (D3) |
 
-### EnvLoader behaviour (verified from source)
+### EnvLoader (17 tests — all from DGLab source, preserved)
 
-1. **load(path):** Reads .env file; throws `InvalidEnvFileException` if missing/unreadable
-2. **Parsing:** Skips blank lines and `#` comments; strips `export ` prefix; requires `KEY=VALUE` format
-3. **Key validation:** Keys must match `/^[A-Z_][A-Z0-9_]*$/i`
-4. **Quote handling:** Single-quoted = literal (no interpolation); double-quoted = interpolation applies; bare = trimmed + interpolation
-5. **${VAR} interpolation:** Resolves `${VAR_NAME}` against $_ENV; undefined vars left as literal `${VAR_NAME}`
-6. **Precedence:** Existing $_ENV keys are NEVER overwritten — environment wins over .env file
-7. **Thread safety:** Writes to $_ENV only; never calls `putenv()` or `getenv()`
-8. **Malformed lines:** Throws `\UnexpectedValueException` for missing `=` or invalid key format
+| # | Test | Source |
+|---|---|---|
+| 44-60 | All 17 EnvLoader tests | DGLab source |
+
+### ConfigValidator (8 tests — all NEW)
+
+| # | Test | Source |
+|---|---|---|
+| 61 | Valid config passes | NEW (D6) |
+| 62 | Missing required key throws | NEW (D6) |
+| 63 | Type mismatch throws | NEW (D6) |
+| 64 | Constraint violation throws | NEW (D6) |
+| 65 | Missing required secret throws | NEW (D6) |
+| 66 | Empty required secret throws | NEW (D6) |
+| 67 | All requirements satisfied passes | NEW (D6) |
+| 68 | Validator does not mutate config | NEW (D6) |
+
+### Security (7 tests — from DGLab source)
+
+| # | Test | Source |
+|---|---|---|
+| 69-75 | All 7 security tests | DGLab source |
+
+### Performance (4 tests — from DGLab source)
+
+| # | Test | Source |
+|---|---|---|
+| 76-79 | Resolution/has/miss/build-time benchmarks | DGLab source |
+
+### TOML Parser (10 tests — all NEW)
+
+| # | Test | Source |
+|---|---|---|
+| 80 | Parse basic key-value pairs | NEW (D3) |
+| 81 | Parse nested tables | NEW (D3) |
+| 82 | Parse array of tables | NEW (D3) |
+| 83 | Parse all value types | NEW (D3) |
+| 84 | Parse multi-line strings | NEW (D3) |
+| 85 | Parse comments | NEW (D3) |
+| 86 | Reject malformed TOML | NEW (D3) |
+| 87 | Reject duplicate keys | NEW (D3) |
+| 88 | Parse dotted keys | NEW (D3) |
+| 89 | Parse quoted keys | NEW (D3) |
+
+**Total: 89 acceptance tests** (54 from DGLab source, 35 new SStack requirements)
 
 ---
 
-## 7. Behavioural Acceptance Tests
+## 12. Remaining Open Questions and Blockers
 
-### ConfigRepository Tests
+### Blocking (must resolve before implementation)
 
-| # | Test | Expected Behaviour |
-|---|---|---|
-| 1 | `get('app.name')` on nested config | Returns value at path |
-| 2 | `get('nonexistent')` without default | Returns null |
-| 3 | `get('nonexistent', 'fallback')` | Returns 'fallback' |
-| 4 | `getOrFail('missing.key')` | Throws `MissingConfigurationException` |
-| 5 | `has('existing.key')` | Returns true |
-| 6 | `has('missing.key')` | Returns false |
-| 7 | `all()` with secrets | Secrets replaced with `'***REDACTED***'` |
-| 8 | `allRaw()` | Returns unredacted data |
-| 9 | `get('')` empty key | Throws `\InvalidArgumentException` |
-| 10 | `get('app..name')` consecutive dots | Throws `\InvalidArgumentException` |
-| 11 | Deeply nested key (5+ levels) | Resolves correctly |
-| 12 | Top-level key (no dots) | Returns entire subtree |
+| # | Question |
+|---|---|
+| B1 | TOML parser scope: Full TOML 1.0.0 parser or start with common subset? |
+| B2 | ConfigValidator schema format: Array spec, TOML schema, fluent builder, or attributes? |
+| B3 | ConfigLoader facade API: Single load() call or individual step methods? |
 
-### ConfigBuilder Tests
+### Non-blocking (can resolve during implementation)
 
-| # | Test | Expected Behaviour |
-|---|---|---|
-| 13 | loadFile with valid PHP config | Merges into builder |
-| 14 | loadFile with missing file | Throws `InvalidConfigFileException::missing()` |
-| 15 | loadFile with non-array return | Throws `InvalidConfigFileException::notArray()` |
-| 16 | Multiple loadFile calls | Recursive merge (nested keys merge, not replace) |
-| 17 | withOverride with valid key | Stores override |
-| 18 | withOverride with empty key | Throws `\InvalidArgumentException` |
-| 19 | withOverride with consecutive dots | Throws `\InvalidArgumentException` |
-| 20 | build() merges files + $_ENV + overrides | Overrides win; $_ENV converts to dot notation |
-| 21 | build() freezes builder | Subsequent loadFile/withOverride throws `\LogicException` |
-| 22 | build() with $_ENV containing non-string values | Non-string values skipped |
-| 23 | local.php overrides app.debug only | Other app.* keys preserved from base file |
+| # | Question |
+|---|---|
+| N1 | UndefinedInterpolationException retained or merged into InvalidConfigurationException? |
+| N2 | Environment enum helper methods (displayErrors, enableOpcache)? |
+| N3 | SECRET_PATTERN updates for SStack-specific keys? |
+| N4 | TOML parser support for rarely-used features (hex/octal/binary integers)? |
 
-### EnvLoader Tests
+### Corrected blocking-item count
 
-| # | Test | Expected Behaviour |
-|---|---|---|
-| 24 | Load valid .env file | Returns key-value pairs; writes to $_ENV |
-| 25 | Load missing file | Throws `InvalidEnvFileException::missing()` |
-| 26 | Comments and blank lines | Skipped |
-| 27 | `export KEY=VALUE` prefix | Stripped; key loaded |
-| 28 | Single-quoted value | Literal — no interpolation |
-| 29 | Double-quoted with `${VAR}` | Interpolated against $_ENV |
-| 30 | Bare value with `${VAR}` | Interpolated against $_ENV |
-| 31 | Existing $_ENV key not overwritten | Environment wins over .env file |
-| 32 | Malformed line (no =) | Throws `\UnexpectedValueException` |
-| 33 | Invalid key format | Throws `\UnexpectedValueException` |
-| 34 | Undefined `${VAR}` reference | Left as literal `${VAR}` |
-
-### Security Tests
-
-| # | Test | Expected Behaviour |
-|---|---|---|
-| 35 | Env key with literal dot | Does not escape config namespace |
-| 36 | Env value with control characters | Stored as-is; no injection |
-| 37 | `all()` never exposes secrets | All matching keys redacted |
-| 38 | `allRaw()` exposes secrets | Only callable by trusted code |
-
-### Performance Tests
-
-| # | Test | Expected Behaviour |
-|---|---|---|
-| 39 | 10,000 resolutions of nested key | Mean < 0.01ms (10µs) per resolution |
-| 40 | ConfigRepository construction with 50-section tree | < 1ms total |
+v1 listed 8 open items (3 marked blocking). v2 has 3 blocking (B1-B3) and 4 non-blocking (N1-N4). All 8 original v1 items resolved by owner decisions D1-D8.
 
 ---
 
-## 8. Component Completion Criteria
+## 13. Completion Criteria (per OD-007)
 
-Per OD-007, CORE-10 is complete when ALL of the following are satisfied:
+1. Verified source and blueprint requirements (this document)
+2. Agreed scope: zero external deps, zero Core-internal deps, PHP 8.4 + ext-json
+3. Complete implementation (no stubs, no placeholders)
+4. 89 unit/integration/security/performance tests pass
+5. PHPStan level max with bleedingEdge — zero errors
+6. Documentation of public contracts
+7. Completion review against DGLab source, blueprint, approved architecture
 
-1. **Verified source and blueprint requirements:** DGLab source inspected (this document); blueprint read; discrepancies recorded (§2)
-2. **Agreed implementation scope and dependency contracts:** Zero external dependencies; zero Core-internal dependencies; PHP 8.4 + ext-json only
-3. **Complete implementation of approved scope:** All classes fully implemented (no stubs, no empty methods, no placeholders)
-4. **Meaningful unit tests:** All 34 unit tests in §7 pass; tests verify behaviour, not just class existence
-5. **Integration tests:** N/A (CORE-10 has no dependencies to integrate with)
-6. **Static analysis:** PHPStan level max with bleedingEdge.neon — zero errors
-7. **Security tests:** All 4 security tests in §7 pass
-8. **Performance tests:** Resolution benchmark < 0.01ms per lookup
-9. **Documentation:** Public contracts (ConfigInterface, ConfigBuilderInterface, EnvLoaderInterface) documented with behaviour and edge cases
-10. **Completion review:** Implementation checked against DGLab source, blueprint, and approved architecture (per owner safeguard)
-
-**A component is NOT complete if its tests pass but its implementation diverges from the approved specification without documented owner approval.**
+**NOT complete if tests pass but implementation diverges from approved spec without owner approval.**
 
 ---
 
-## 9. Open Items for Owner Decision
-
-| # | Item | Options | Blocking? |
-|---|---|---|---|
-| 1 | ConfigLoader vs ConfigBuilder+EnvLoader architecture | A (source), B (blueprint), C (reconcile) | YES — blocks implementation |
-| 2 | Environment enum (Dev/Staging/Production) | Implement or defer | NO — can be added later |
-| 3 | ConfigValidator (schema validation) | Implement or defer | NO — can be added later |
-| 4 | Merge precedence model | Source (files→$_ENV→overrides) or blueprint (secrets: env wins; non-secrets: JSON wins) | YES — affects implementation |
-| 5 | Config file format | PHP files (source) or JSON (blueprint) | YES — affects implementation |
-| 6 | Exception naming | `MissingConfigurationException` (source) or `ConfigNotFoundException` (blueprint) | NO — cosmetic |
-| 7 | Interface API | Source's `getOrFail()`+`allRaw()` or blueprint's `getEnvironment()` | YES — affects interface contract |
-| 8 | ConfigKey attribute | Implement now or defer to CORE-17 | NO — deferred by blueprint |
-
----
-
-*End of CORE-10 Reconstruction Specification. Submitted for owner approval. Implementation NOT authorized.*
+*End of CORE-10 Reconstruction Specification v2. Submitted for owner approval. Implementation NOT authorized.*
