@@ -902,25 +902,6 @@ final class TomlParser
         $this->skipWhitespaceAndComments();
     }
 
-    private function expectNewline(): void
-    {
-        if ($this->position >= $this->length) {
-            return;
-        }
-
-        $char = $this->input[$this->position];
-        if ($char === "\n") {
-            $this->position++;
-        } elseif ($char === "\r") {
-            $this->position++;
-            if ($this->position < $this->length && $this->input[$this->position] === "\n") {
-                $this->position++;
-            }
-        } else {
-            throw $this->parseError("expected newline, got '{$char}'");
-        }
-    }
-
     private function currentLine(): int
     {
         return substr_count($this->input, "\n", 0, $this->position) + 1;
