@@ -106,11 +106,13 @@ final class TomlParser
                     $current[$segment] = [];
                 }
                 $current[$segment][] = [];
+                /** @var array<string, mixed> $current */
                 $current = &$current[$segment][count($current[$segment]) - 1];
             } else {
                 if (!isset($current[$segment]) || !is_array($current[$segment])) {
                     $current[$segment] = [];
                 }
+                /** @var array<string, mixed> $current */
                 $current = &$current[$segment];
             }
         }
@@ -149,6 +151,7 @@ final class TomlParser
                 if (!isset($current[$segment]) || !is_array($current[$segment])) {
                     $current[$segment] = [];
                 }
+                /** @var array<string, mixed> $current */
                 $current = &$current[$segment];
             }
         }
@@ -452,7 +455,7 @@ final class TomlParser
         }
 
         $codepoint = hexdec($hex);
-        return mb_chr($codepoint, 'UTF-8');
+        return mb_chr((int) $codepoint, 'UTF-8');
     }
 
     private function parseBoolean(): bool
@@ -466,6 +469,9 @@ final class TomlParser
         throw $this->parseError('expected boolean (true or false)');
     }
 
+    /**
+     * @return list<mixed>
+     */
     private function parseArray(): array
     {
         $this->consume('[');
@@ -509,6 +515,9 @@ final class TomlParser
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function parseInlineTable(): array
     {
         $this->consume('{');
@@ -538,6 +547,7 @@ final class TomlParser
                     if (!isset($current[$segment])) {
                         $current[$segment] = [];
                     }
+                    /** @var array<string, mixed> $current */
                     $current = &$current[$segment];
                 }
             }
@@ -651,7 +661,7 @@ final class TomlParser
                 $numStr .= '.';
                 $isFloat = true;
                 $this->position++;
-            } elseif (($char === 'e' || $char === 'E') && $isFloat || (($char === 'e' || $char === 'E') && !$isFloat)) {
+            } elseif ($char === 'e' || $char === 'E') {
                 $numStr .= 'e';
                 $isFloat = true;
                 $this->position++;
@@ -694,7 +704,7 @@ final class TomlParser
             throw $this->parseError('expected hex digits after 0x');
         }
         $sign = ($this->input[$start] === '-') ? -1 : 1;
-        return $sign * hexdec($hexStr);
+        return (int) ($sign * hexdec($hexStr));
     }
 
     private function parseOctalInteger(int $start): int
@@ -738,7 +748,7 @@ final class TomlParser
             throw $this->parseError('expected binary digits after 0b');
         }
         $sign = ($this->input[$start] === '-') ? -1 : 1;
-        return $sign * bindec($binStr);
+        return (int) ($sign * bindec($binStr));
     }
 
     private function parseDateTime(): mixed

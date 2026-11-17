@@ -20,6 +20,10 @@ use SovereignStack\Core\Config\Exception\MissingConfigurationException;
  */
 final class ConfigValidator implements ConfigValidatorInterface
 {
+    /**
+     * @param array<string, mixed> $data
+     * @param array<string, mixed> $schema
+     */
     public function validate(array $data, array $schema): void
     {
         $this->validateRequired($data, $schema['required'] ?? []);
@@ -29,6 +33,7 @@ final class ConfigValidator implements ConfigValidatorInterface
     }
 
     /**
+     * @param array<string, mixed> $data
      * @param array<string, string> $required
      */
     private function validateRequired(array $data, array $required): void
@@ -45,6 +50,7 @@ final class ConfigValidator implements ConfigValidatorInterface
     }
 
     /**
+     * @param array<string, mixed> $data
      * @param array<string, string> $optional
      */
     private function validateOptional(array $data, array $optional): void
@@ -57,6 +63,7 @@ final class ConfigValidator implements ConfigValidatorInterface
     }
 
     /**
+     * @param array<string, mixed> $data
      * @param array<string, callable> $constraints
      */
     private function validateConstraints(array $data, array $constraints): void
@@ -75,6 +82,7 @@ final class ConfigValidator implements ConfigValidatorInterface
     }
 
     /**
+     * @param array<string, mixed> $data
      * @param list<string> $secrets
      */
     private function validateRequiredSecrets(array $data, array $secrets): void
@@ -124,6 +132,9 @@ final class ConfigValidator implements ConfigValidatorInterface
         };
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     private function getNested(array $data, string $key): mixed
     {
         $segments = explode('.', $key);
@@ -139,6 +150,9 @@ final class ConfigValidator implements ConfigValidatorInterface
         return $current;
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     private function hasNested(array $data, string $key): bool
     {
         $segments = explode('.', $key);

@@ -21,7 +21,7 @@ use SovereignStack\Core\Config\Toml\TomlParser;
  */
 final class ConfigBuilder implements ConfigBuilderInterface
 {
-    /** @var array<string, mixed> */
+    /** @var array<array-key, mixed> */
     private array $data = [];
 
     /** @var array<int, array{0: string, 1: mixed}> */
@@ -77,6 +77,7 @@ final class ConfigBuilder implements ConfigBuilderInterface
             $this->setNested($merged, $key, $value);
         }
 
+        /** @var array<string, mixed> $merged */
         return $merged;
     }
 
@@ -103,10 +104,10 @@ final class ConfigBuilder implements ConfigBuilderInterface
     /**
      * Recursively merge two config arrays.
      *
-     * @param array<string, mixed> $left
-     * @param array<string, mixed> $right
+     * @param array<array-key, mixed> $left
+     * @param array<array-key, mixed> $right
      *
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function mergeRecursive(array $left, array $right): array
     {
@@ -123,7 +124,7 @@ final class ConfigBuilder implements ConfigBuilderInterface
     /**
      * Set a value at a dot-notation path, creating intermediate arrays.
      *
-     * @param array<string, mixed> $array Reference — mutated in place.
+     * @param array<array-key, mixed> $array Reference — mutated in place.
      */
     private function setNested(array &$array, string $key, mixed $value): void
     {

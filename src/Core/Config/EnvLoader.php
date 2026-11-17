@@ -39,7 +39,7 @@ final class EnvLoader implements EnvLoaderInterface
 
         $loaded = [];
 
-        foreach ($this->lines($contents, $path) as [$lineNum, $key, $value]) {
+        foreach ($this->lines($contents, $path) as [, $key, $value]) {
             if (array_key_exists($key, $_ENV)) {
                 continue;
             }

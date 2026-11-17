@@ -106,7 +106,7 @@ final class ConfigRepository implements ConfigInterface
     /**
      * Recursively redact sensitive keys from a configuration array.
      *
-     * @param array<string, mixed> $data
+     * @param array<array-key, mixed> $data
      *
      * @return array<string, mixed>
      */
@@ -122,6 +122,7 @@ final class ConfigRepository implements ConfigInterface
                 $result[$key] = $value;
             }
         }
+        /** @var array<string, mixed> $result */
         return $result;
     }
 

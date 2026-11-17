@@ -30,7 +30,7 @@ final class ConfigLoader
      * @param list<string> $configFiles TOML file paths in load order.
      * @param string|null $envFile .env file path (null = skip .env loading).
      * @param array<string, mixed> $overrides Explicit overrides (dot-notation keys).
-     * @param array|null $schema Validation schema (null = skip validation).
+     * @param array<string, mixed>|null $schema Validation schema (null = skip validation).
      *
      * @throws Exception\ConfigurationFileException If any file is missing or unparseable.
      * @throws Exception\InvalidEnvironmentException If APP_ENV is absent or unrecognised.
@@ -84,6 +84,8 @@ final class ConfigLoader
 
     /**
      * Get a nested value from a config array using dot-notation.
+     *
+     * @param array<string, mixed> $data
      */
     private function getNested(array $data, string $key): ?string
     {
@@ -97,6 +99,6 @@ final class ConfigLoader
             $current = $current[$segment];
         }
 
-        return is_string($current) ? $current : null;
+        return $current;
     }
 }

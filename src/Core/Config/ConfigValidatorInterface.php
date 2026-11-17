@@ -25,7 +25,7 @@ interface ConfigValidatorInterface
      * ]
      *
      * @param array<string, mixed> $data The merged configuration.
-     * @param array $schema The validation schema.
+     * @param array<string, mixed> $schema The validation schema.
      *
      * @throws Exception\MissingConfigurationException When a required key or secret is absent.
      * @throws Exception\InvalidConfigurationException When a type mismatch or constraint violation occurs.
