@@ -1,0 +1,3 @@
+# Malformed TOML for parse error testing
+key = "value"
+bad = 
