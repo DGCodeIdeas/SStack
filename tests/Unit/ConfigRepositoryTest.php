@@ -22,7 +22,7 @@ final class ConfigRepositoryTest extends TestCase
 
     public function testGetReturnsValueForNestedKeyUsingDotNotation(): void
     {
-        $repo = new ConfigRepository(['db' => ['connections' => ['primary' => ['host' => 'db.internal']]]);
+        $repo = new ConfigRepository(['db' => ['connections' => ['primary' => ['host' => 'db.internal']]]]);
         self::assertSame('db.internal', $repo->get('db.connections.primary.host'));
     }
 
