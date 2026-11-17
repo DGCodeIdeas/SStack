@@ -1,0 +1,8 @@
+# Local override configuration — overrides nested keys
+
+[app]
+debug = true
+url = "https://staging.sstack.local"
+
+[db.connections.primary]
+host = "staging-db-primary.internal"

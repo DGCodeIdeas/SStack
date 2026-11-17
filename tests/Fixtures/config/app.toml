@@ -1,0 +1,25 @@
+# Application configuration
+
+[app]
+name = "SovereignStack"
+env = "production"
+debug = false
+url = "https://sstack.local"
+
+[db]
+driver = "mysql"
+host = "127.0.0.1"
+port = 3306
+name = "sstack"
+
+[db.connections]
+primary = {host = "db-primary.internal", port = 3306}
+replica = {host = "db-replica.internal", port = 3307}
+
+[cache]
+driver = "file"
+ttl = 3600
+
+[secrets]
+password = "super-secret-value"
+api_key = "key-12345"
