@@ -61,11 +61,25 @@ final class TomlParser
                 $this->parseKeyValue($currentTable);
             }
 
-            $this->skipWhitespaceAndComments();
-
-            // Expect newline or EOF after each statement
+            // After a statement: skip inline whitespace, optional comment,
+            // then consume newline if present (don't throw — might be at EOF)
+            $this->skipInlineWhitespace();
+            if ($this->position < $this->length && $this->input[$this->position] === '#') {
+                while ($this->position < $this->length && $this->input[$this->position] !== "\n") {
+                    $this->position++;
+                }
+            }
+            // Consume newline if present
             if ($this->position < $this->length) {
-                $this->expectNewline();
+                $char = $this->input[$this->position];
+                if ($char === "\n") {
+                    $this->position++;
+                } elseif ($char === "\r") {
+                    $this->position++;
+                    if ($this->position < $this->length && $this->input[$this->position] === "\n") {
+                        $this->position++;
+                    }
+                }
             }
         }
 

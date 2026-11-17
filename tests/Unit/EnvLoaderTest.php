@@ -15,8 +15,9 @@ final class EnvLoaderTest extends TestCase
     protected function setUp(): void
     {
         $this->envFile = __DIR__ . '/../Fixtures/config/.env.test';
+        // Clean all test-relevant keys for deterministic runs
         foreach (array_keys($_ENV) as $key) {
-            if (preg_match('/^(APP_|DB_|BASE_URL|SINGLE_QUOTED|DOUBLE_QUOTED|BARE_VALUE|EXPORTED_KEY|IGNORED_KEY)/', $key)) {
+            if (preg_match('/^(APP_|DB_|BASE_URL|SINGLE_QUOTED|DOUBLE_QUOTED|BARE_VALUE|EXPORTED_KEY|IGNORED_KEY|KEY|MIXED_INT|EMPTY_VAL|TEST_)/', $key)) {
                 unset($_ENV[$key]);
             }
         }
@@ -26,7 +27,7 @@ final class EnvLoaderTest extends TestCase
     protected function tearDown(): void
     {
         foreach (array_keys($_ENV) as $key) {
-            if (preg_match('/^(APP_|DB_|BASE_URL|SINGLE_QUOTED|DOUBLE_QUOTED|BARE_VALUE|EXPORTED_KEY|IGNORED_KEY)/', $key)) {
+            if (preg_match('/^(APP_|DB_|BASE_URL|SINGLE_QUOTED|DOUBLE_QUOTED|BARE_VALUE|EXPORTED_KEY|IGNORED_KEY|KEY|MIXED_INT|EMPTY_VAL|TEST_)/', $key)) {
                 unset($_ENV[$key]);
             }
         }
